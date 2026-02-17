@@ -1,0 +1,288 @@
+import { useState, useCallback, useMemo } from 'react';
+import { format, isToday, isTomorrow, parseISO, isAfter, startOfDay } from 'date-fns';
+import { ru } from 'date-fns/locale';
+import Calendar from '../components/Calendar/Calendar';
+import BookingForm from '../components/BookingForm/BookingForm';
+import BookingCard from '../components/BookingCard/BookingCard';
+import Modal from '../components/Modal/Modal';
+import { useRooms } from '../hooks/useRooms';
+import { cancelBookingByCode } from '../api/bookings';
+
+const ROOM_COLORS = ['bg-room-1', 'bg-room-2'];
+
+function formatDateLabel(dateStr) {
+  const date = parseISO(dateStr);
+  if (isToday(date)) return 'Сегодня';
+  if (isTomorrow(date)) return 'Завтра';
+  return format(date, 'd MMMM, EEEE', { locale: ru });
+}
+
+export default function HomePage() {
+  const { rooms, loading } = useRooms();
+  const [bookingModal, setBookingModal] = useState({ open: false, data: null });
+  const [detailModal, setDetailModal] = useState({ open: false, booking: null });
+  const [cancelModal, setCancelModal] = useState(false);
+  const [cancelCode, setCancelCode] = useState('');
+  const [cancelError, setCancelError] = useState(null);
+  const [cancelSuccess, setCancelSuccess] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [allBookings, setAllBookings] = useState([]);
+
+  const handleSlotClick = useCallback((data) => {
+    setBookingModal({ open: true, data });
+  }, []);
+
+  const handleBookingClick = useCallback((booking) => {
+    setDetailModal({ open: true, booking });
+  }, []);
+
+  const handleBookingSuccess = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
+
+  const handleBookingsLoaded = useCallback((bookings) => {
+    setAllBookings(bookings || []);
+  }, []);
+
+  const upcomingBookings = useMemo(() => {
+    const now = new Date();
+    const todayStr = format(now, 'yyyy-MM-dd');
+    const currentTime = format(now, 'HH:mm');
+
+    return allBookings
+      .filter((b) => {
+        if (b.date > todayStr) return true;
+        if (b.date === todayStr && b.endTime?.slice(0, 5) > currentTime) return true;
+        return false;
+      })
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+        return (a.startTime || '') < (b.startTime || '') ? -1 : 1;
+      })
+      .slice(0, 10);
+  }, [allBookings]);
+
+  const groupedBookings = useMemo(() => {
+    const groups = {};
+    upcomingBookings.forEach((b) => {
+      if (!groups[b.date]) groups[b.date] = [];
+      groups[b.date].push(b);
+    });
+    return Object.entries(groups);
+  }, [upcomingBookings]);
+
+  async function handleCancelByCode(e) {
+    e.preventDefault();
+    setCancelError(null);
+    try {
+      await cancelBookingByCode(cancelCode);
+      setCancelSuccess(true);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setCancelError(err.message);
+    }
+  }
+
+  function getRoomIndex(booking) {
+    const roomId = booking.room?.id || booking.room?.data?.id;
+    return rooms.findIndex((r) => r.id === roomId);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin w-8 h-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Расписание</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Нажмите на свободный слот, чтобы забронировать
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setCancelModal(true)}
+            className="px-4 py-2.5 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors"
+          >
+            Отменить по коду
+          </button>
+          <button
+            onClick={() => setBookingModal({ open: true, data: null })}
+            className="px-4 py-2.5 text-sm font-medium text-white bg-primary rounded-xl hover:bg-primary-dark transition-colors flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Забронировать
+          </button>
+        </div>
+      </div>
+
+      <div className="flex gap-6">
+        {/* Calendar */}
+        <div className="flex-1 min-w-0">
+          <Calendar
+            key={refreshKey}
+            rooms={rooms}
+            onSlotClick={handleSlotClick}
+            onBookingClick={handleBookingClick}
+            onBookingsLoaded={handleBookingsLoaded}
+          />
+        </div>
+
+        {/* Upcoming bookings sidebar */}
+        <div className="hidden lg:block w-80 flex-shrink-0">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 sticky top-6">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <h3 className="font-semibold text-gray-900">Ближайшие брони</h3>
+              <p className="text-xs text-gray-400 mt-0.5">На этой неделе</p>
+            </div>
+            <div className="max-h-[calc(100vh-200px)] overflow-y-auto">
+              {groupedBookings.length === 0 ? (
+                <div className="px-5 py-8 text-center">
+                  <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <p className="text-sm text-gray-500">Нет ближайших бронирований</p>
+                </div>
+              ) : (
+                <div className="p-3 space-y-4">
+                  {groupedBookings.map(([date, items]) => (
+                    <div key={date}>
+                      <div className="text-xs font-medium text-gray-400 uppercase tracking-wide px-2 mb-2">
+                        {formatDateLabel(date)}
+                      </div>
+                      <div className="space-y-1.5">
+                        {items.map((booking) => {
+                          const roomIdx = getRoomIndex(booking);
+                          const roomName = rooms[roomIdx]?.name || 'Зал';
+                          return (
+                            <div
+                              key={booking.id || booking.documentId}
+                              className="flex items-start gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors"
+                              onClick={() => handleBookingClick(booking)}
+                            >
+                              <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${ROOM_COLORS[roomIdx] || 'bg-gray-400'}`} />
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium text-gray-900 truncate">
+                                  {booking.topic || 'Без темы'}
+                                </div>
+                                <div className="text-xs text-gray-500 mt-0.5">
+                                  {booking.startTime?.slice(0, 5)} — {booking.endTime?.slice(0, 5)} · {roomName}
+                                </div>
+                                <div className="text-xs text-gray-400 mt-0.5 truncate">
+                                  {booking.bookerName} · {booking.department}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {bookingModal.open && rooms.length > 0 && (
+        <BookingForm
+          isOpen={bookingModal.open}
+          onClose={() => setBookingModal({ open: false, data: null })}
+          rooms={rooms}
+          initialData={bookingModal.data}
+          onSuccess={handleBookingSuccess}
+        />
+      )}
+
+      {/* Booking detail modal */}
+      <Modal
+        isOpen={detailModal.open}
+        onClose={() => setDetailModal({ open: false, booking: null })}
+        title="Детали бронирования"
+      >
+        {detailModal.booking && (
+          <div className="space-y-3">
+            <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Тема</span>
+                <span className="text-sm font-medium">{detailModal.booking.topic || 'Без темы'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Время</span>
+                <span className="text-sm font-medium">
+                  {detailModal.booking.startTime?.slice(0, 5)} — {detailModal.booking.endTime?.slice(0, 5)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Кто забронировал</span>
+                <span className="text-sm font-medium">{detailModal.booking.bookerName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Отдел</span>
+                <span className="text-sm font-medium">{detailModal.booking.department}</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Cancel by code modal */}
+      <Modal
+        isOpen={cancelModal}
+        onClose={() => { setCancelModal(false); setCancelSuccess(false); setCancelCode(''); setCancelError(null); }}
+        title="Отменить бронирование"
+      >
+        {cancelSuccess ? (
+          <div className="text-center py-4">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="text-gray-700 font-medium">Бронирование отменено</p>
+            <button
+              onClick={() => { setCancelModal(false); setCancelSuccess(false); setCancelCode(''); }}
+              className="mt-4 w-full py-3 bg-primary text-white rounded-xl font-medium hover:bg-primary-dark transition-colors"
+            >
+              Закрыть
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleCancelByCode} className="space-y-4">
+            <p className="text-sm text-gray-500">
+              Введите код, который вы получили при бронировании
+            </p>
+            <input
+              type="text"
+              value={cancelCode}
+              onChange={(e) => { setCancelCode(e.target.value.toUpperCase()); setCancelError(null); }}
+              placeholder="Например: A1B2C3"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-center text-lg font-mono tracking-wider focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+            />
+            {cancelError && (
+              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-xl">{cancelError}</div>
+            )}
+            <button
+              type="submit"
+              disabled={!cancelCode}
+              className="w-full py-3 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors disabled:opacity-50"
+            >
+              Отменить бронирование
+            </button>
+          </form>
+        )}
+      </Modal>
+    </div>
+  );
+}
