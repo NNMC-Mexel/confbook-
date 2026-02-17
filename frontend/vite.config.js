@@ -5,10 +5,10 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    port: 14000,
+    port: 17000,
     proxy: {
       '/api': {
-        target: 'http://localhost:15000',
+        target: 'http://localhost:16000',
         changeOrigin: true,
       },
     },
