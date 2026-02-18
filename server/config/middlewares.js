@@ -1,11 +1,11 @@
-module.exports = [
+module.exports = ({ env }) => [
   'strapi::logger',
   'strapi::errors',
   'strapi::security',
   {
     name: 'strapi::cors',
     config: {
-      origin: ['http://localhost:15001'],
+      origin: env.array('CORS_ORIGIN', ['http://localhost:15001']),
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       headers: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
     },
