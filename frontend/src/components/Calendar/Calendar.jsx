@@ -15,6 +15,10 @@ import { useBookings } from '../../hooks/useBookings';
 
 const HOURS = Array.from({ length: 13 }, (_, i) => i + 8); // 8:00 — 20:00
 const ROOM_COLORS = ['bg-room-1', 'bg-room-2'];
+
+function shortName(name) {
+  return name?.split(' ')[0] || name;
+}
 const ROOM_TEXT_COLORS = ['text-room-1', 'text-room-2'];
 const ROOM_BG_LIGHT = ['bg-room-1/10', 'bg-room-2/10'];
 const ROOM_BORDER = ['border-room-1/30', 'border-room-2/30'];
@@ -109,7 +113,7 @@ export default function Calendar({ rooms, onSlotClick, onBookingClick, onBooking
           {rooms.map((room, idx) => (
             <div key={room.id} className="flex items-center gap-2">
               <div className={`w-3 h-3 rounded-full ${ROOM_COLORS[idx]}`} />
-              <span className="text-sm text-gray-600">{room.name}</span>
+              <span className="text-sm text-gray-600">{shortName(room.name)}</span>
             </div>
           ))}
         </div>
@@ -171,7 +175,7 @@ export default function Calendar({ rooms, onSlotClick, onBookingClick, onBooking
                         }`}
                       >
                         <div className={`w-2 h-2 rounded-full ${ROOM_COLORS[idx]}`} />
-                        <span className="text-[10px] font-medium text-gray-400">{room.name}</span>
+                        <span className="text-[10px] font-medium text-gray-400">{shortName(room.name)}</span>
                       </div>
                     ))}
                   </div>
@@ -218,7 +222,7 @@ export default function Calendar({ rooms, onSlotClick, onBookingClick, onBooking
                                 onClick={() => onBookingClick?.(booking)}
                               >
                                 <div className={`text-[10px] font-semibold ${ROOM_TEXT_COLORS[idx]} truncate opacity-70`}>
-                                  {room.name}
+                                  {shortName(room.name)}
                                 </div>
                                 <div className={`text-xs font-medium ${ROOM_TEXT_COLORS[idx]} truncate`}>
                                   {booking.topic || 'Без темы'}
@@ -269,7 +273,7 @@ export default function Calendar({ rooms, onSlotClick, onBookingClick, onBooking
                 }`}
               >
                 <div className={`w-2.5 h-2.5 rounded-full ${ROOM_COLORS[idx]}`} />
-                <span className="text-xs font-medium text-gray-500">{room.name}</span>
+                <span className="text-xs font-medium text-gray-500">{shortName(room.name)}</span>
               </div>
             ))}
           </div>
@@ -303,7 +307,7 @@ export default function Calendar({ rooms, onSlotClick, onBookingClick, onBooking
                           onClick={() => onBookingClick?.(booking)}
                         >
                           <div className={`text-[10px] font-semibold ${ROOM_TEXT_COLORS[idx]} truncate opacity-70`}>
-                            {room.name}
+                            {shortName(room.name)}
                           </div>
                           <div className={`text-xs font-medium ${ROOM_TEXT_COLORS[idx]} truncate`}>
                             {booking.topic || 'Без темы'}
