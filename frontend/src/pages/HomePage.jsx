@@ -124,6 +124,41 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* Room cards */}
+      {rooms.length > 0 && (
+        <div className="flex gap-4 mb-6">
+          {rooms.map((room, idx) => {
+            const colors = [
+              { border: 'border-room-1', bg: 'bg-room-1/5', text: 'text-room-1', dot: 'bg-room-1', icon: 'text-room-1' },
+              { border: 'border-room-2', bg: 'bg-room-2/5', text: 'text-room-2', dot: 'bg-room-2', icon: 'text-room-2' },
+            ];
+            const c = colors[idx] || colors[0];
+            return (
+              <div
+                key={room.id}
+                className={`flex-1 bg-white rounded-2xl border-2 ${c.border} ${c.bg} p-5 flex items-center gap-4 cursor-pointer hover:shadow-md transition-all`}
+                onClick={() => setBookingModal({ open: true, data: { roomId: room.id } })}
+              >
+                <div className={`w-12 h-12 rounded-xl ${c.bg} border ${c.border} flex items-center justify-center shrink-0`}>
+                  <svg className={`w-6 h-6 ${c.icon}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={`font-semibold text-gray-900 truncate`}>{room.name}</div>
+                </div>
+                <div className={`text-sm font-medium ${c.text} flex items-center gap-1 shrink-0`}>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Забронировать
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <div className="flex gap-6">
         {/* Calendar */}
         <div className="flex-1 min-w-0">
